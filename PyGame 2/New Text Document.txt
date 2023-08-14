@@ -1,0 +1,221 @@
+from random import randint
+from time import sleep, time
+
+import pygame
+from math import *
+
+window = pygame.display.set_mode((400, 700))
+background = pygame.transform.scale(pygame.image.load('ggg (1).jpg'), (400, 700))
+hp_list = ['hp1.png', 'hp2.png', 'hp3.png', 'hp4.png', 'hp5.png', 'hp6.png', 'hp7.png', 'hp8.png', 'hp9.png',
+           'hp10.png', 'hp11.png']
+explosion_list = ['exp00.png', 'exp01.png', 'exp02.png', 'exp03.png', 'exp04.png', 'exp05.png', 'exp06.png',
+                  'exp07.png', 'exp08.png']
+hp_bar = pygame.image.load('hp1.png')
+hp_bar = pygame.transform.scale(hp_bar, (100, 30))
+
+clock = pygame.time.Clock()
+
+class GameSprite(pygame.sprite.Sprite):
+    def __init__(self, player_image, x, y, width, height, speed):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.transform.scale(pygame.image.load(player_image), (width, height))
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.speed = speed
+        self.width = width
+        self.height = height
+
+    def show(self):
+        window.blit(self.image, (self.rect.x, self.rect.y))
+
+class Hero(GameSprite):
+    def move(self):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] and self.rect.x > 0:
+            self.rect.x -= self.speed
+        elif keys[pygame.K_RIGHT] and self.rect.x < 300:
+            self.rect.x += self.speed
+        elif keys[pygame.K_UP] and self.rect.y > 0:
+            self.rect.y -= self.speed
+            sound.play()
+            self.image = pygame.transform.scale(pygame.image.load('spaceship1.png'), (self.width, self.height))
+        elif keys[pygame.K_DOWN] and self.rect.y < 600:
+            self.rect.y += self.speed
+        else:
+            self.image = pygame.transform.scale(pygame.image.load('spaceship3.png'), (self.width, self.height))
+            sound.stop()
+
+    def fire(self):
+        bullet = Bullets('laser.png', player.rect.centerx - 15, player.rect.y, 25, 60, 10)
+        bullets.add(bullet)
+        bullet1 = Bullets('laser1.png', player.rect.centerx - 30, player.rect.y, 25, 60, 15)
+        bullets.add(bullet1)
+        bullet2 = Bullets('laser1.png', player.rect.centerx, player.rect.y, 25, 60, 15)
+        bullets.add(bullet2)
+
+
+
+class Enemy(GameSprite):
+    def update(self):
+        self.rect.y += self.speed
+        if self.rect.y > 700:
+            self.kill()
+    def fire(self):
+        bullet = Bulletss("laser1 - Copy.png", enemy.rect.centerx - 15, enemy.rect.y + 80, 20, 60, 15, player.rect.x+80, player.rect.y)
+        bulletss.add(bullet)
+        angle = bullet.calculate_angle(bullet.rect.x, bullet.rect.y, player.rect.x, player.rect.y)
+        bullet.image = pygame.transform.rotate(bullet.image, 90-angle)
+
+
+class Bullets(GameSprite):
+    def update(self):
+        self.rect.y -= self.speed
+        if self.rect.y < 0:
+            self.kill()
+
+
+class Bulletss(GameSprite):
+    def __init__(self, player_image, x, y, width, height, speed, targetx, targety):
+        super().__init__(player_image, x, y, width, height, speed)
+        angle = atan2(targety - y, targetx - x)
+        self.targetx = cos(angle)
+        self.targety = sin(angle)
+
+    def update(self):
+        self.rect.y += self.targety*self.speed
+        self.rect.x += self.targetx*self.speed
+        if self.rect.y > 700:
+            self.kill()
+
+    def calculate_angle(self, x, y, targetx, targety):
+        dy = targety - y
+        dx = targetx - x
+        rad = atan2(dy, dx)
+        angle = degrees(rad)
+        return angle
+
+
+
+
+player = Hero('spaceship1.png', 200, 350, 120, 120, 5)
+enemies = pygame.sprite.Group()
+bullets = pygame.sprite.Group()
+bulletss = pygame.sprite.Group()
+
+pygame.mixer.init()
+pygame.mixer.music.load("music.mp3")
+pygame.mixer.music.play()
+sound = pygame.mixer.Sound('sound.mp3')
+fire_sound = pygame.mixer.Sound('blaster.mp3')
+exp_sound = pygame.mixer.Sound('explosion.mp3')
+score = 0
+pygame.font.init()
+font1 = pygame.font.SysFont('Algerian', 20)
+score_text = font1.render('SCORE: ' + str(score), True, (255, 255, 255))
+
+y = 0
+height = 700
+y1 = -height
+
+w = 0
+hp_counter = 0
+game = True
+finish = False
+fire_counter = 0
+reload_time = False
+while game:
+    if finish != True:
+        y += 5
+        window.blit(background, (0, y))
+        y1 += 5
+        window.blit(background, (0, y1))
+        if y > 700:
+            y = -height
+        if y1 > 700:
+            y1 = -height
+        if w == 0:
+            w = 20
+            enemy = Enemy('eee-min.png', randint(5, 300), 0, 100, 100, 10)
+            enemies.add(enemy)
+            enemy.fire()
+        else:
+            w -= 1
+        enemies.update()
+        enemies.draw(window)
+        bullets.update()
+        bullets.draw(window)
+        bulletss.draw(window)
+        bulletss.update()
+        score_text = font1.render('SCORE: ' + str(score), True, (255, 255, 255))
+        window.blit(score_text, (10, 40))
+
+        player.show()
+        player.move()
+        collides = pygame.sprite.groupcollide(bullets, enemies, True, True)
+        for collide in collides:
+            score += 1
+            exp_sound.play()
+            exp = 0
+            for i in range(len(explosion_list)):
+                if exp == 0:
+                    exp = 40
+                    exp_anim = pygame.transform.scale(pygame.image.load(explosion_list[i]), (100, 100))
+                    window.blit(exp_anim, (collide.rect.x, collide.rect.y))
+                else:
+                    exp -= 1
+
+        if pygame.sprite.spritecollide(player, enemies, True) or pygame.sprite.spritecollide(player, bulletss, True):
+            hp_bar = pygame.image.load(hp_list[hp_counter])
+            hp_bar = pygame.transform.scale(hp_bar, (100, 30))
+            hp_counter += 1
+            exp_sound.play()
+            exp1 = 0
+            for i in range(len(explosion_list)):
+                if exp1 == 0:
+                    exp1 = 40
+                    exp_anim = pygame.transform.scale(pygame.image.load(explosion_list[i]), (100, 100))
+                    window.blit(exp_anim, (player.rect.x, player.rect.y))
+                else:
+                    exp1 -= 1
+
+        if hp_counter > 10:
+            finish = True
+            
+            lose_text = font1.render('YOU LOSE!', True, (255, 255, 255))
+            window.blit(lose_text, (160, 300))
+
+        window.blit(hp_bar, (10, 10))
+
+        if score >= 10:
+            finish = True
+
+
+
+
+    events = pygame.event.get()
+    for event in events:
+        if event.type == pygame.QUIT:
+            game = False
+
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
+            player.fire()
+            fire_sound.play()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                if fire_counter < 3 and reload_time == False:
+                    player.fire()
+                    fire_sound.play()
+                    fire_counter += 1
+                if fire_counter >= 3 and reload_time == False:
+                    start_time = time()
+                    reload_time = True
+
+    if reload_time == True:
+        end_time = time()
+        if end_time - start_time >= 3:
+            fire_counter= 0
+            reload_time = False
+
+    pygame.display.update()
+    clock.tick(60)
